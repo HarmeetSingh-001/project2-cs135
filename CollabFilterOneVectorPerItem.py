@@ -56,8 +56,8 @@ class CollabFilterOneVectorPerItem(AbstractBaseCollabFilterSGD):
             mu=ag_np.ones(1),
             b_per_user=ag_np.ones(n_users),
             c_per_item=ag_np.ones(n_items), 
-            U= ag_np.array(0.001 * random_state.randn(n_users, self.n_factors)),
-            V=ag_np.array(0.001 * random_state.randn(n_items, self.n_factors)), 
+            U= ag_np.random.randn(n_users, self.n_factors),
+            V= ag_np.random.randn(n_items, self.n_factors), 
             )
 
 
@@ -119,9 +119,9 @@ class CollabFilterOneVectorPerItem(AbstractBaseCollabFilterSGD):
         # TIP: use self.alpha to access regularization strength
 
         # unpack data and call predict method
-        user_id_N = ag_np.array(data_tuple[0], dtype=int)
-        item_id_N = ag_np.array(data_tuple[1], dtype=int)
-        y_N = ag_np.array(data_tuple[2])
+        user_id_N = ag_np.asarray(data_tuple[0], dtype=int)
+        item_id_N = ag_np.asarray(data_tuple[1], dtype=int)
+        y_N = ag_np.asarray(data_tuple[2])
         yhat_N = self.predict(user_id_N, item_id_N, **param_dict)
 
         # calculate squared error term
@@ -151,60 +151,69 @@ if __name__ == '__main__':
     # to have right scale as the dataset (right num users and items)
 
     # Used for 1A
-    
-    n_factors_list = [2, 10, 50]
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5), sharey=True)
 
-    for i, n_factors in enumerate(n_factors_list):
-        model = CollabFilterOneVectorPerItem(
-            n_epochs=25, batch_size=1000, step_size=.25,
-            n_factors=n_factors, alpha=0, random_state=42)
-        model.init_parameter_dict(n_users, n_items, train_tuple)
-        model.fit(train_tuple, valid_tuple)
+    # n_factors_list = [2, 10, 50]
+    # fig, axes = plt.subplots(1, 3, figsize=(18, 5), sharey=True)
+    # best_valid_rmse_list = []
 
-        # Plot training and validation loss curves
-        axes[i].plot(model.trace_rmse_train, label='Train Loss')
-        axes[i].plot(model.trace_rmse_valid, label='Valid Loss')
-        axes[i].set_title(f'CollabFilterOneVectorPerItem (n_factors={n_factors})')
-        axes[i].set_xlabel('Recorded Epochs')
-        axes[i].set_ylabel('Loss')
-        axes[i].legend()
-        axes[i].grid(True)
-    
-    plt.tight_layout()
-    plt.show()
-
-    # Used for 1B
-    # alpha_list = [0, 0.001, 0.01, 0.1]
-    # results = {} 
-
-    # for alpha in alpha_list:
+    # for i, n_factors in enumerate(n_factors_list):
     #     model = CollabFilterOneVectorPerItem(
-    #         n_epochs=200,
-    #         batch_size=1000,
-    #         step_size=0.25,
-    #         n_factors=50,
-    #         alpha=alpha,
-    #         random_state=42
-    #     )
+    #         n_epochs=100, batch_size=1000, step_size=.25,
+    #         n_factors=n_factors, alpha=0, random_state=42)
     #     model.init_parameter_dict(n_users, n_items, train_tuple)
     #     model.fit(train_tuple, valid_tuple)
 
-    #     best_val_rmse = min(model.trace_rmse_valid)
-    #     results[alpha] = (best_val_rmse, model)
+    #     # Plot training and validation loss curves
+    #     axes[i].plot(model.trace_rmse_train, label='Train Loss')
+    #     axes[i].plot(model.trace_rmse_valid, label='Valid Loss')
+    #     axes[i].set_title(f'CollabFilterOneVectorPerItem (n_factors={n_factors})')
+    #     axes[i].set_xlabel('Recorded Epochs')
+    #     axes[i].set_ylabel('Loss')
+    #     axes[i].legend()
+    #     axes[i].grid(True)
 
-    # best_alpha = min(results, key=lambda a: results[a][0])
-    # best_model = results[best_alpha][1]
+    #     best_valid_rmse = min(model.trace_rmse_valid)
+    #     best_valid_rmse_list.append(best_valid_rmse)
 
-
-    # plt.figure(figsize=(7,5))
-    # plt.plot(best_model.trace_rmse_train, label='Train Loss')
-    # plt.plot(best_model.trace_rmse_valid, label='Valid Loss')
-    # plt.title(f'Best Model (alpha={best_alpha}, n_factors={50})')
-    # plt.xlabel('Recorded Epochs')
-    # plt.ylabel('Loss (RMSE)')
-    # plt.legend()
-    # plt.grid(True)
     # plt.tight_layout()
     # plt.show()
+    # for n_factors, best_val_rmse in zip(n_factors_list, best_valid_rmse_list):
+    #     print(f'n_factors={n_factors}, Best Valid RMSE={best_val_rmse:.4f}')
+
+    # Used for 1B
+    alpha_list = [0, 0.01, 0.1, 1, 10]
+    results = {} 
+
+    for alpha in alpha_list:
+        model = CollabFilterOneVectorPerItem(
+            n_epochs=100,
+            batch_size=1000,
+            step_size=0.25,
+            n_factors=50,
+            alpha=alpha,
+            random_state=42
+        )
+        model.init_parameter_dict(n_users, n_items, train_tuple)
+        model.fit(train_tuple, valid_tuple)
+
+        best_val_rmse = min(model.trace_rmse_valid)
+        results[alpha] = (best_val_rmse, model)
+
+    best_alpha = min(results, key=lambda a: results[a][0])
+    best_val_rmse = results[best_alpha][0]
+    best_model = results[best_alpha][1]
+
+
+    plt.figure(figsize=(7,5))
+    plt.plot(best_model.trace_rmse_train, label='Train Loss')
+    plt.plot(best_model.trace_rmse_valid, label='Valid Loss')
+    plt.title(f'Best Model (alpha={best_alpha}, n_factors={50})')
+    plt.xlabel('Recorded Epochs')
+    plt.ylabel('Loss (RMSE)')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    print(f'Best alpha={best_alpha}, Best Valid RMSE={best_val_rmse:.4f}')
 
