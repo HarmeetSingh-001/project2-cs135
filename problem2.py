@@ -2,6 +2,10 @@ from surprise import SVD, Dataset, Reader, accuracy
 from surprise.model_selection import train_test_split, GridSearchCV
 import pandas as pd
 import csv
+import random
+import numpy as np
+import matplotlib.pyplot as plt
+from analysis_tools import ModelAnalysis
 
 # load data using surprise tools instead of the given method
 reader = Reader(line_format='user item rating', sep=',', rating_scale=(1, 5))
@@ -10,7 +14,7 @@ trainset, testset = train_test_split(data, test_size=0.2)
 
 
 param_grid = {
-    'n_factors': [150], #[50, 100, 150]
+    'n_factors': [50], #[50, 100, 150]
     'n_epochs': [50],
     'biased': [True], #[True, False]
     'init_mean': [-0.1], #[0.1, -0.1]
@@ -19,10 +23,26 @@ param_grid = {
     'reg_all': [0.1], #[0.02, 0.05, 0.1]
 }
 
-gs = GridSearchCV(SVD, param_grid, measures=['mae'], cv=3, n_jobs=-1)
+gs = GridSearchCV(SVD, param_grid, measures=['mae'], cv=10, n_jobs=-1)
 gs.fit(data)
+
+train_mae_list = []
+val_mae_list = []
+
+for params in gs.cv_results['params']:
+    algo = SVD(**params)
+    algo.fit(trainset)
+    train_preds = algo.test(trainset.build_testset())
+    train_mae = accuracy.mae(train_preds, verbose=False)
+    val_preds = algo.test(testset)
+    val_mae = accuracy.mae(val_preds, verbose=False)
+    train_mae_list.append(train_mae)
+    val_mae_list.append(val_mae)
 print("Best MAE score attained: ", gs.best_score['mae'])
 print("Best parameters: ", gs.best_params['mae'])
+
+#ModelAnalysis.plot_hyperparameter(param_grid['n_factors'],train_mae_list,val_mae_list,'n_factors')
+ModelAnalysis.plot_hyperparameter(param_grid['n_epochs'],train_mae_list,val_mae_list,'n_epochs')
 
 
 # code to set up our test set using the masked dataset
@@ -32,9 +52,10 @@ with open('data_movie_lens_100k/ratings_masked_leaderboard_set.csv', 'r') as f:
     for row in reader:
         maskedSet.append((row['user_id'], row['item_id'], 0.0))
 
-model = gs.best_estimator['mae']
-model.fit(trainset)
-predictions = model.test(maskedSet)
+best_model = gs.best_estimator['mae']
+best_model.fit(trainset)
+predictions = best_model.test(maskedSet)
+        
 
 outputfile = "predicted_ratings_leaderboard.txt"
 
