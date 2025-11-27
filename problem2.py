@@ -4,6 +4,7 @@ import pandas as pd
 import csv
 import random
 import numpy as np
+from surprise import SVDpp
 import matplotlib.pyplot as plt
 from analysis_tools import ModelAnalysis
 
@@ -14,35 +15,33 @@ trainset, testset = train_test_split(data, test_size=0.2)
 
 
 param_grid = {
-    'n_factors': [50], #[50, 100, 150]
-    'n_epochs': [50],
-    'biased': [True], #[True, False]
-    'init_mean': [-0.1], #[0.1, -0.1]
-    'init_std_dev': [0.05], #[0.05, 0.1, 0.2]
-    'lr_all': [0.01], #[0.005, 0.01, 0.02]
-    'reg_all': [0.1], #[0.02, 0.05, 0.1]
+    'n_factors': [20, 50],
+    'n_epochs': [20, 40],
+    'reg_all': [0.05, 0.1],
+    'lr_all': [0.005]  # fixed to save time
 }
 
-gs = GridSearchCV(SVD, param_grid, measures=['mae'], cv=10, n_jobs=-1)
+
+gs = GridSearchCV(SVDpp, param_grid, measures=['mae'], cv=10, n_jobs=-1)
 gs.fit(data)
 
 train_mae_list = []
 val_mae_list = []
 
-for params in gs.cv_results['params']:
-    algo = SVD(**params)
-    algo.fit(trainset)
-    train_preds = algo.test(trainset.build_testset())
-    train_mae = accuracy.mae(train_preds, verbose=False)
-    val_preds = algo.test(testset)
-    val_mae = accuracy.mae(val_preds, verbose=False)
-    train_mae_list.append(train_mae)
-    val_mae_list.append(val_mae)
+# for params in gs.cv_results['params']:
+#     algo = SVD(**params)
+#     algo.fit(trainset)
+#     train_preds = algo.test(trainset.build_testset())
+#     train_mae = accuracy.mae(train_preds, verbose=False)
+#     val_preds = algo.test(testset)
+#     val_mae = accuracy.mae(val_preds, verbose=False)
+#     train_mae_list.append(train_mae)
+#     val_mae_list.append(val_mae)
 print("Best MAE score attained: ", gs.best_score['mae'])
 print("Best parameters: ", gs.best_params['mae'])
 
 #ModelAnalysis.plot_hyperparameter(param_grid['n_factors'],train_mae_list,val_mae_list,'n_factors')
-ModelAnalysis.plot_hyperparameter(param_grid['n_epochs'],train_mae_list,val_mae_list,'n_epochs')
+#ModelAnalysis.plot_hyperparameter(param_grid['n_epochs'],train_mae_list,val_mae_list,'n_epochs')
 
 
 # code to set up our test set using the masked dataset
@@ -52,8 +51,9 @@ with open('data_movie_lens_100k/ratings_masked_leaderboard_set.csv', 'r') as f:
     for row in reader:
         maskedSet.append((row['user_id'], row['item_id'], 0.0))
 
+trainset_full = data.build_full_trainset()
 best_model = gs.best_estimator['mae']
-best_model.fit(trainset)
+best_model.fit(trainset_full)
 predictions = best_model.test(maskedSet)
         
 
