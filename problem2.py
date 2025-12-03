@@ -405,7 +405,7 @@ with torch.no_grad():
 
 final_preds = svdpp_preds + best_beta * nn_preds
 
-output_filename = "predicted_ratings_leaderboard_set.txt"
+output_filename = "predicted_ratings_leaderboard.txt"
 with open(output_filename, "w") as f:
     for p in final_preds:
         clipped_p = np.clip(p, 1.0, 5.0)
